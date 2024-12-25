@@ -23,9 +23,7 @@ Before you begin, ensure you have the following installed on your system:
 
 ## Running the Application
 
-1. Install dependencies: `npm install`
-
-2. Start MongoDB using Docker: `docker-compose up -d`
+1. Start MongoDB using Docker: `docker-compose up -d`
 
 2. Start the application: `npm run dev`
 
