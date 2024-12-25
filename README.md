@@ -21,6 +21,20 @@ Before you begin, ensure you have the following installed on your system:
    npm install
    ```
 
+3. Create a .env file in the project root:
+- For Windows (using PowerShell):
+```bash
+@"
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/invoice_app
+"@ | Out-File -FilePath ".env" -Encoding UTF8
+```
+- For Mac/Linux (using Terminal):
+```bash
+echo "PORT=3000
+MONGODB_URI=mongodb://localhost:27017/invoice_app" > .env
+```
+
 ## Running the Application
 
 1. Start MongoDB using Docker: `docker-compose up -d`
