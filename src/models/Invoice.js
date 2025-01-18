@@ -1,81 +1,94 @@
 ﻿const mongoose = require('mongoose');
 
 const invoiceSchema = new mongoose.Schema({
-	fromUser: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'User',
-		required: true
-	},
-	toUser: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'User',
-		required: true
-	},
-	amount: {
-		type: Number,
-		required: true,
-		validate: {
-			validator: function(v) {
-				return v > 0;
-			},
-			message: 'Amount must be greater than 0'
-		}
-	},
-	status: {
-		type: String,
-		enum: ['pending', 'completed', 'failed'],
-		default: 'pending'
-	},
-	createdAt: {
-		type: Date,
-		default: Date.now
-	}
+    organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        required: true
+    },
+    fromUser: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    toUser: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    amount: {
+        type: Number,
+        required: true,
+        validate: {
+            validator: function(v) {
+                return v > 0;
+            },
+            message: 'Amount must be greater than 0'
+        }
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'completed', 'failed'],
+        default: 'pending'
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
 });
 
-invoiceSchema.statics.createAndProcess = async function(fromUserId, toUserId, amount) {
-	try {
-		const User = mongoose.model('User');
-		
-		// Get both users
-		const fromUser = await User.findById(fromUserId);
-		const toUser = await User.findById(toUserId);
+invoiceSchema.statics.createAndProcess = async function(invoiceData) {
+    try {
+        const User = mongoose.model('User');
+        
+        // Get both users and verify they're in the same organization
+        const [fromUser, toUser] = await Promise.all([
+            User.findOne({ 
+                _id: invoiceData.fromUser,
+                organization: invoiceData.organization 
+            }),
+            User.findOne({ 
+                _id: invoiceData.toUser,
+                organization: invoiceData.organization 
+            })
+        ]);
 
-		if (!fromUser || !toUser) {
-			throw new Error('One or both users not found');
-		}
+        if (!fromUser || !toUser) {
+            throw new Error('Invalid users or users from different organizations');
+        }
 
-		if (fromUser.balance < amount) {
-			throw new Error('Insufficient balance');
-		}
+        if (fromUser.balance < invoiceData.amount) {
+            throw new Error('Insufficient balance');
+        }
 
-		// Invoice Payment
-		const invoice = await this.create({
-			fromUser: fromUserId,
-			toUser: toUserId,
-			amount: amount,
-			status: 'pending'
-		});
+        // Create invoice
+        const invoice = await this.create({
+            ...invoiceData,
+            status: 'pending'
+        });
 
-		// Update balances
-		// Not atomic but wasn't sure how to do that so left it
-		fromUser.balance -= amount;
-		await fromUser.save();
+        // Update balances
+        await User.updateOne(
+            { _id: fromUser._id },
+            { $inc: { balance: -invoiceData.amount } }
+        );
 
-		toUser.balance += amount;
-		await toUser.save();
+        await User.updateOne(
+            { _id: toUser._id },
+            { $inc: { balance: invoiceData.amount } }
+        );
 
-		// Update invoice status
-		invoice.status = 'completed';
-		await invoice.save();
+        // Update invoice status
+        await this.updateOne(
+            { _id: invoice._id },
+            { status: 'completed' }
+        );
 
-		return invoice;
-
-	} catch (error) {
-		console.error('Transaction failed:', error);
-		throw error;
-	}
-}
+        return invoice;
+    } catch (error) {
+        throw error;
+    }
+};
 
 const Invoice = mongoose.model('Invoice', invoiceSchema);
-
 module.exports = Invoice;

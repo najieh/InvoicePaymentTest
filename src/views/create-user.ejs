@@ -8,8 +8,9 @@
 	<div class="container">
 		<div class="form-header">
 			<h1>Create New User</h1>
-			<a href="/" class="btn back-btn">Back to Home</a>
+			<a href="/organization/<%= organization.name %>" class="btn back-btn">Back to Organization</a>
 		</div>
+
 
 		<% if (locals.error) { %>
 			<div class="error-message">
@@ -17,7 +18,7 @@
 			</div>
 		<% } %>
 
-		<form action="/create-user" method="POST" class="form-container">
+		<form action="/organization/<%= organization._id %>/create-user" method="POST" class="form-container">
 			<div class="form-group">
 				<label for="username">Username:</label>
 				<input 
